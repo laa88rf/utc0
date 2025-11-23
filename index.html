@@ -1,8 +1,72 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Bubbles / Snow / Rain – Center Clock (Optimized)</title>
+
+  <!-- Primary Meta -->
+  <title>Exact UTC+0 (GMT) Time Online — UTC0.ru</title>
+  <meta name="title" content="Exact UTC+0 (GMT) Time Online — UTC0.ru" />
+  <meta name="description"
+        content="Real-time UTC+0 (GMT) online clock. Accurate world time based on Coordinated Universal Time." />
+  <meta name="keywords"
+        content="UTC, GMT, time, exact time, utc+0, world time, atomic time, universal time, online clock, utc0.ru" />
+
+  <!-- Viewport -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Canonical -->
+  <link rel="canonical" href="https://utc0.ru/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Exact UTC+0 (GMT) Time Online — UTC0.ru" />
+  <meta property="og:description"
+        content="Real-time UTC+0 (GMT) online clock. Accurate world time based on Coordinated Universal Time." />
+  <meta property="og:url" content="https://utc0.ru/" />
+  <meta property="og:site_name" content="UTC0.ru" />
+  <meta property="og:image" content="https://utc0.ru/img/preview.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Exact UTC+0 (GMT) Time Online — UTC0.ru" />
+  <meta name="twitter:description"
+        content="Real-time UTC+0 (GMT) online clock. Accurate world time based on Coordinated Universal Time." />
+  <meta name="twitter:image" content="https://utc0.ru/img/preview.png" />
+
+  <!-- Robots -->
+  <meta name="robots" content="index, follow" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+  <!-- Theme color -->
+  <meta name="theme-color" content="#050816" />
+
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "UTC0.ru",
+    "url": "https://utc0.ru/",
+    "description": "Real-time UTC+0 (GMT) online clock. Accurate world time.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "UTC0.ru"
+    },
+    "image": {
+      "@type": "ImageObject",
+      "url": "https://utc0.ru/img/preview.png",
+      "width": 1200,
+      "height": 630
+    }
+  }
+  </script>
+
+  <!-- Styles -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -39,8 +103,8 @@
       font-size: clamp(36px, 9vw, 96px);
       letter-spacing: 0.08em;
       text-shadow:
-        0 0 10px rgba(255,255,255,0.7),
-        0 0 25px rgba(0,150,255,0.55);
+        0 0 10px rgba(200,255,255,0.8),
+        0 0 25px rgba(0,220,190,0.7);
       margin-bottom: 6px;
     }
 
@@ -63,6 +127,7 @@
     }
   </style>
 </head>
+
 <body>
 
   <div class="clock" id="clock">
@@ -73,22 +138,171 @@
   <canvas id="scene"></canvas>
 
   <script>
-    /* ---------------- CONFIG / CONSTANTS ---------------- */
+    /* ---------------- EFFECTS & THEMES ---------------- */
 
-    const MODES = ["bubbles", "snow", "rain"];
-    let modeIndex = 0;
-    let mode = MODES[modeIndex];
+    const EFFECTS = ["bubbles", "snow", "rain", "sparks"];
+    const THEMES  = ["aurora", "sunset", "cyberpunk", "forest", "space", "sumi"];
 
-    const MAX_PARTICLES = 450;
+    let effectIndex = 0;
+    let themeIndex  = 0;
+
+    let effect = EFFECTS[effectIndex];
+    let theme  = THEMES[themeIndex];
+
+    // Настройки тем: фон + цвета частиц
+    const THEME_CONFIGS = {
+      aurora: {
+        bgTop:    "#050816",
+        bgMid1:   "#081a2b",
+        bgMid2:   "#041f28",
+        bgBottom: "#031619",
+        overlayStops: [
+          "rgba(19,255,223,0)",
+          "rgba(19,255,223,0.09)",
+          "rgba(126,255,107,0.12)",
+          "rgba(194,85,255,0.09)",
+          "rgba(19,255,223,0)"
+        ],
+        rainColor: "rgba(160, 230, 255, 0.9)",
+        snowColor: "#e5f7ff",
+        bubbleHueMin: 130,
+        bubbleHueMax: 190,
+        bubbleSat: 80,
+        bubbleLight: 70,
+        sparkHueMin: 160,
+        sparkHueMax: 220,
+        sparkSat: 90,
+        sparkLight: 80
+      },
+      sunset: {
+        bgTop:    "#14070a",
+        bgMid1:   "#2b0b0b",
+        bgMid2:   "#6b2b13",
+        bgBottom: "#120808",
+        overlayStops: [
+          "rgba(255,123,0,0)",
+          "rgba(255,123,0,0.12)",
+          "rgba(255,179,71,0.16)",
+          "rgba(255,220,178,0.12)",
+          "rgba(255,123,0,0)"
+        ],
+        rainColor: "rgba(255,210,150,0.9)",
+        snowColor: "#fff5e6",
+        bubbleHueMin: 25,
+        bubbleHueMax: 45,
+        bubbleSat: 85,
+        bubbleLight: 70,
+        sparkHueMin: 20,
+        sparkHueMax: 50,
+        sparkSat: 95,
+        sparkLight: 75
+      },
+      cyberpunk: {
+        bgTop:    "#05010a",
+        bgMid1:   "#12001f",
+        bgMid2:   "#200038",
+        bgBottom: "#080214",
+        overlayStops: [
+          "rgba(255,0,140,0)",
+          "rgba(255,0,140,0.14)",
+          "rgba(42,0,255,0.18)",
+          "rgba(0,213,255,0.14)",
+          "rgba(255,0,140,0)"
+        ],
+        rainColor: "rgba(0,255,255,0.9)",
+        snowColor: "#f5e8ff",
+        bubbleHueMin: 280,
+        bubbleHueMax: 320,
+        bubbleSat: 90,
+        bubbleLight: 65,
+        sparkHueMin: 190,
+        sparkHueMax: 220,
+        sparkSat: 95,
+        sparkLight: 75
+      },
+      forest: {
+        bgTop:    "#040b06",
+        bgMid1:   "#071810",
+        bgMid2:   "#0f2b1b",
+        bgBottom: "#050c06",
+        overlayStops: [
+          "rgba(100,200,140,0)",
+          "rgba(100,200,140,0.10)",
+          "rgba(180,230,190,0.14)",
+          "rgba(150,210,160,0.10)",
+          "rgba(100,200,140,0)"
+        ],
+        rainColor: "rgba(180,230,200,0.85)",
+        snowColor: "#e7f5ea",
+        bubbleHueMin: 110,
+        bubbleHueMax: 150,
+        bubbleSat: 70,
+        bubbleLight: 70,
+        sparkHueMin: 90,
+        sparkHueMax: 140,
+        sparkSat: 80,
+        sparkLight: 70
+      },
+      space: {
+        bgTop:    "#000009",
+        bgMid1:   "#050517",
+        bgMid2:   "#0b0a26",
+        bgBottom: "#050413",
+        overlayStops: [
+          "rgba(80,160,255,0)",
+          "rgba(80,160,255,0.10)",
+          "rgba(180,120,255,0.14)",
+          "rgba(120,200,255,0.10)",
+          "rgba(80,160,255,0)"
+        ],
+        rainColor: "rgba(160,200,255,0.9)",
+        snowColor: "#f0f4ff",
+        bubbleHueMin: 200,
+        bubbleHueMax: 260,
+        bubbleSat: 80,
+        bubbleLight: 70,
+        sparkHueMin: 190,
+        sparkHueMax: 260,
+        sparkSat: 90,
+        sparkLight: 80
+      },
+      sumi: {
+        bgTop:    "#050505",
+        bgMid1:   "#101010",
+        bgMid2:   "#181818",
+        bgBottom: "#050505",
+        overlayStops: [
+          "rgba(255,255,255,0)",
+          "rgba(255,255,255,0.04)",
+          "rgba(255,255,255,0.06)",
+          "rgba(255,255,255,0.04)",
+          "rgba(255,255,255,0)"
+        ],
+        rainColor: "rgba(200,200,200,0.7)",
+        snowColor: "#f5f5f5",
+        bubbleHueMin: 0,
+        bubbleHueMax: 0,
+        bubbleSat: 0,
+        bubbleLight: 80,
+        sparkHueMin: 0,
+        sparkHueMax: 0,
+        sparkSat: 0,
+        sparkLight: 90
+      }
+    };
+
+    let themeConfig = THEME_CONFIGS[theme];
+
+    /* ---------------- RENDER CONFIG ---------------- */
+
+    const MAX_PARTICLES = 500;
     const MAX_DPR = 1.5;
 
-    // blur / fade
     let transitionAlpha = 0;
     let transitionStart = 0;
     const TRANSITION_DURATION = 350;
-    const MAX_BLUR = 2; // было 4, теперь легче
+    const MAX_BLUR = 2;
 
-    // scroll inertia
     let scrollAccum = 0;
     const SCROLL_THRESHOLD = 80;
 
@@ -99,15 +313,25 @@
     const timeEl  = document.getElementById('clockTime');
     const dateEl  = document.getElementById('clockDate');
 
-    let width = 0;
-    let height = 0;
-    let dpr = 1;
-
+    let width = 0, height = 0, dpr = 1;
     let particles = [];
 
     /* ---------------- HELPERS ---------------- */
-
     const random = (a, b) => Math.random() * (b - a) + a;
+
+    function applyThemeAndEffect(stepDir) {
+      if (stepDir > 0) {
+        effectIndex = (effectIndex + 1) % EFFECTS.length;
+        themeIndex  = (themeIndex + 1)  % THEMES.length;
+      } else {
+        effectIndex = (effectIndex - 1 + EFFECTS.length) % EFFECTS.length;
+        themeIndex  = (themeIndex - 1 + THEMES.length)  % THEMES.length;
+      }
+      effect = EFFECTS[effectIndex];
+      theme  = THEMES[themeIndex];
+      themeConfig = THEME_CONFIGS[theme];
+      startTransition();
+    }
 
     function resize() {
       const rectWidth = window.innerWidth;
@@ -128,26 +352,6 @@
       initParticles();
     }
 
-    function setMode(newMode) {
-      const idx = MODES.indexOf(newMode);
-      if (idx === -1 || idx === modeIndex) return;
-      modeIndex = idx;
-      mode = MODES[modeIndex];
-      startTransition();
-    }
-
-    function nextMode() {
-      modeIndex = (modeIndex + 1) % MODES.length;
-      mode = MODES[modeIndex];
-      startTransition();
-    }
-
-    function prevMode() {
-      modeIndex = (modeIndex - 1 + MODES.length) % MODES.length;
-      mode = MODES[modeIndex];
-      startTransition();
-    }
-
     function startTransition() {
       initParticles();
       transitionAlpha = 1;
@@ -161,31 +365,32 @@
       scrollAccum += e.deltaY;
 
       while (scrollAccum >= SCROLL_THRESHOLD) {
-        prevMode();
+        applyThemeAndEffect(-1);
         scrollAccum -= SCROLL_THRESHOLD;
       }
       while (scrollAccum <= -SCROLL_THRESHOLD) {
-        nextMode();
+        applyThemeAndEffect(1);
         scrollAccum += SCROLL_THRESHOLD;
       }
     }, { passive: false });
 
-    clockEl.addEventListener('click', nextMode);
-
+    clockEl.addEventListener('click', () => applyThemeAndEffect(1));
     window.addEventListener('resize', resize);
 
     /* ---------------- PARTICLES INIT ---------------- */
 
     function initParticles() {
       particles = [];
-      const isRain = mode === 'rain';
-      const isSnow = mode === 'snow';
 
-      // немного уменьшил плотность
+      const isRain   = effect === 'rain';
+      const isSnow   = effect === 'snow';
+      const isSparks = effect === 'sparks';
+
       let density;
-      if (isRain) density = 0.35;
-      else if (isSnow) density = 0.22;
-      else density = 0.14;
+      if (isRain)        density = 0.35;
+      else if (isSnow)   density = 0.22;
+      else if (isSparks) density = 0.25;
+      else               density = 0.14;   // bubbles
 
       let count = Math.floor(width * density);
       if (count > MAX_PARTICLES) count = MAX_PARTICLES;
@@ -198,7 +403,7 @@
             y: random(0, height),
             length: random(10, 20),
             speedY: random(4, 9),
-            opacity: random(0.15, 0.6),
+            opacity: random(0.2, 0.7),
           });
         } else if (isSnow) {
           particles.push({
@@ -209,7 +414,21 @@
             speedY: random(0.5, 1.8),
             driftX: random(-0.4, 0.4),
             phase: random(0, Math.PI * 2),
-            opacity: random(0.45, 0.9),
+            opacity: random(0.5, 0.9),
+          });
+        } else if (isSparks) {
+          const life = random(60, 200);
+          particles.push({
+            type: 'spark',
+            x: random(0, width),
+            y: random(0, height),
+            radius: random(1.2, 2.4),
+            speedX: random(-0.6, 0.6),
+            speedY: random(-0.6, 0.2),
+            baseOpacity: random(0.4, 1),
+            life,
+            maxLife: life,
+            hue: random(themeConfig.sparkHueMin, themeConfig.sparkHueMax),
           });
         } else {
           particles.push({
@@ -220,23 +439,45 @@
             speedY: random(0.5, 1.8),
             driftX: random(-0.25, 0.25),
             phase: random(0, Math.PI * 2),
-            opacity: random(0.35, 0.8),
+            opacity: random(0.35, 0.85),
             lineWidth: random(1, 1.8),
-            hue: random(190, 260)
+            hue: random(themeConfig.bubbleHueMin, themeConfig.bubbleHueMax)
           });
         }
       }
     }
 
-    /* ---------------- DRAWING ---------------- */
+    /* ---------------- BACKGROUND ---------------- */
 
     function drawBackground() {
-      ctx.fillStyle = '#050816';
+      const t = themeConfig;
+
+      const grad = ctx.createLinearGradient(0, 0, 0, height);
+      grad.addColorStop(0,    t.bgTop);
+      grad.addColorStop(0.35, t.bgMid1);
+      grad.addColorStop(0.7,  t.bgMid2);
+      grad.addColorStop(1,    t.bgBottom);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, height);
+
+      const overlayWidth = width * 0.5;
+      const overlayX = (width - overlayWidth) / 2;
+      const og = ctx.createLinearGradient(overlayX, 0, overlayX + overlayWidth, 0);
+
+      og.addColorStop(0,   t.overlayStops[0]);
+      og.addColorStop(0.2, t.overlayStops[1]);
+      og.addColorStop(0.5, t.overlayStops[2]);
+      og.addColorStop(0.8, t.overlayStops[3]);
+      og.addColorStop(1,   t.overlayStops[4]);
+
+      ctx.fillStyle = og;
       ctx.fillRect(0, 0, width, height);
     }
 
+    /* ---------------- EFFECT DRAWING ---------------- */
+
     function drawRain() {
-      ctx.strokeStyle = 'rgba(173, 216, 230, 0.8)';
+      ctx.strokeStyle = themeConfig.rainColor;
       ctx.lineWidth = 1;
       ctx.lineCap = 'round';
 
@@ -249,7 +490,7 @@
         ctx.stroke();
 
         d.y += d.speedY;
-        d.x += 0.4;
+        d.x += 0.35;
 
         if (d.y > height + d.length) {
           d.y = random(-50, 0);
@@ -260,7 +501,7 @@
     }
 
     function drawSnow() {
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = themeConfig.snowColor;
 
       for (let f of particles) {
         ctx.globalAlpha = f.opacity;
@@ -284,23 +525,24 @@
     }
 
     function drawBubbles() {
+      const t = themeConfig;
+
       for (let b of particles) {
         ctx.globalAlpha = b.opacity;
         ctx.lineWidth = b.lineWidth;
-        ctx.strokeStyle = `hsla(${b.hue}, 80%, 75%, ${b.opacity})`;
+        ctx.strokeStyle = `hsla(${b.hue}, ${t.bubbleSat}%, ${t.bubbleLight}%, ${b.opacity})`;
 
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
         ctx.stroke();
 
-        // highlight arc
         ctx.save();
-        ctx.globalAlpha = b.opacity * 0.9;
+        ctx.globalAlpha = b.opacity * 0.95;
         ctx.lineWidth = b.lineWidth * 0.85;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-        const r = b.radius * 0.9;
+        ctx.strokeStyle = 'rgba(230,255,255,0.95)';
+        const r = b.radius * 0.92;
         ctx.beginPath();
-        ctx.arc(b.x, b.y, r, -Math.PI * 0.15, -Math.PI * 0.7, true);
+        ctx.arc(b.x, b.y, r, -Math.PI * 0.1, -Math.PI * 0.75, true);
         ctx.stroke();
         ctx.restore();
 
@@ -310,8 +552,8 @@
         b.y -= b.speedY;
         b.x += Math.sin(b.phase) * 0.4 + b.driftX;
 
-        b.hue += 0.02;
-        if (b.hue > 260) b.hue = 190;
+        b.hue += 0.03;
+        if (b.hue > t.bubbleHueMax) b.hue = t.bubbleHueMin;
 
         if (b.y < -b.radius) {
           b.y = height + b.radius + random(0, 80);
@@ -322,11 +564,55 @@
       }
     }
 
+    function drawSparks() {
+      const t = themeConfig;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+
+      for (let s of particles) {
+        const lifeRatio = s.life / s.maxLife;
+        const opacity = s.baseOpacity * lifeRatio;
+        const r = s.radius;
+
+        const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
+        grad.addColorStop(0, `hsla(${s.hue}, ${t.sparkSat}%, ${t.sparkLight}%, ${opacity})`);
+        grad.addColorStop(0.5, `hsla(${s.hue}, ${t.sparkSat}%, ${t.sparkLight - 20}%, ${opacity * 0.8})`);
+        grad.addColorStop(1, `hsla(${s.hue}, ${t.sparkSat}%, ${t.sparkLight - 30}%, 0)`);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        s.x += s.speedX;
+        s.y += s.speedY + 0.03;
+
+        s.hue += 0.2;
+        if (s.hue > t.sparkHueMax) s.hue = t.sparkHueMin;
+
+        s.life -= 1;
+        if (s.life <= 0 || s.x < -20 || s.x > width + 20 || s.y > height + 20) {
+          const life = random(60, 200);
+          s.x = random(0, width);
+          s.y = random(0, height);
+          s.radius = random(1.2, 2.4);
+          s.speedX = random(-0.6, 0.6);
+          s.speedY = random(-0.6, 0.2);
+          s.baseOpacity = random(0.4, 1);
+          s.life = life;
+          s.maxLife = life;
+          s.hue = random(t.sparkHueMin, t.sparkHueMax);
+        }
+      }
+
+      ctx.restore();
+    }
+
     /* ---------------- CLOCK ---------------- */
 
     const WEEKDAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-    const MONTHS   = ["January","February","March","April","May","June",
-                      "July","August","September","October","November","December"];
+    const MONTHS   = ["January","February","March","April","May","June","July",
+                      "August","September","October","November","December"];
 
     function updateClock() {
       const n = new Date();
@@ -342,26 +628,26 @@
         `${n.getUTCFullYear()}`;
     }
 
-    /* ---------------- ANIMATION LOOP ---------------- */
+    /* ---------------- ANIMATE ---------------- */
 
     function animate(ts) {
       drawBackground();
 
-      if (mode === "rain") drawRain();
-      else if (mode === "snow") drawSnow();
-      else drawBubbles();
+      if (effect === "rain")      drawRain();
+      else if (effect === "snow") drawSnow();
+      else if (effect === "bubbles") drawBubbles();
+      else if (effect === "sparks")  drawSparks();
 
-      // fade+blur
       let blur = 0;
       if (transitionAlpha > 0) {
         const t = Math.min(1, (ts - transitionStart) / TRANSITION_DURATION);
         transitionAlpha = 1 - t;
 
-        const overlayAlpha = 0.45 * transitionAlpha; // было 0.6
+        const overlayAlpha = 0.4 * transitionAlpha;
         blur = MAX_BLUR * transitionAlpha;
 
         if (overlayAlpha > 0) {
-          ctx.fillStyle = `rgba(5, 8, 22, ${overlayAlpha})`;
+          ctx.fillStyle = `rgba(3, 10, 20, ${overlayAlpha})`;
           ctx.fillRect(0, 0, width, height);
         }
       }
@@ -376,6 +662,7 @@
 
     resize();
     requestAnimationFrame(animate);
+
   </script>
 </body>
 </html>
