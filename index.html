@@ -2,36 +2,9 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Exact UTC+0 (GMT) Time Online — Real-Time World Clock | UTC0.ru</title>
-
-  <meta name="description"
-        content="UTC0.ru is a real-time UTC+0 (GMT) online clock. Accurate world time based on Coordinated Universal Time, convenient for developers, traders, and global teams." />
-
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="robots" content="index,follow" />
-  <link rel="canonical" href="https://utc0.ru/" />
-
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Exact UTC+0 (GMT) Time Online — UTC0.ru" />
-  <meta property="og:description"
-        content="Real-time UTC+0 (GMT) online clock. Accurate world time based on Coordinated Universal Time." />
-  <meta property="og:url" content="https://utc0.ru/" />
-  <meta property="og:site_name" content="UTC0.ru" />
-  <!-- <meta property="og:image" content="https://utc0.ru/img/preview.png" /> -->
-
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Exact UTC+0 (GMT) Time Online — UTC0.ru" />
-  <meta name="twitter:description"
-        content="Real-time UTC+0 (GMT) online clock. Accurate world time based on Coordinated Universal Time." />
-
+  <title>Bubbles / Snow / Rain – Center Clock (Optimized)</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html, body {
       width: 100%;
@@ -42,9 +15,7 @@
       color: #ffffff;
     }
 
-    canvas {
-      display: block;
-    }
+    canvas { display: block; }
 
     /* CLOCK */
     .clock {
@@ -55,10 +26,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
       z-index: 10;
       user-select: none;
-      white-space: nowrap;
       animation: clockFadeIn 0.9s ease-out forwards, clockBreath 5s ease-in-out infinite;
       opacity: 0;
       cursor: pointer;
@@ -72,12 +41,14 @@
       text-shadow:
         0 0 10px rgba(255,255,255,0.7),
         0 0 25px rgba(0,150,255,0.55);
+      margin-bottom: 6px;
     }
 
     .clock-date {
       font-size: clamp(14px, 2.4vw, 18px);
       opacity: 0.9;
       letter-spacing: 0.04em;
+      white-space: nowrap;
     }
 
     @keyframes clockFadeIn {
@@ -102,40 +73,59 @@
   <canvas id="scene"></canvas>
 
   <script>
-    /* ------------------------------------------
-       MODES & DEFAULT
-       ------------------------------------------ */
+    /* ---------------- CONFIG / CONSTANTS ---------------- */
+
     const MODES = ["bubbles", "snow", "rain"];
-    let modeIndex = 0; // default = bubbles
+    let modeIndex = 0;
     let mode = MODES[modeIndex];
-    /* ------------------------------------------ */
+
+    const MAX_PARTICLES = 450;
+    const MAX_DPR = 1.5;
+
+    // blur / fade
+    let transitionAlpha = 0;
+    let transitionStart = 0;
+    const TRANSITION_DURATION = 350;
+    const MAX_BLUR = 2; // было 4, теперь легче
+
+    // scroll inertia
+    let scrollAccum = 0;
+    const SCROLL_THRESHOLD = 80;
 
     const canvas = document.getElementById('scene');
     const ctx = canvas.getContext('2d');
-    const clockEl = document.getElementById('clock');
-    const clockTimeEl = document.getElementById('clockTime');
-    const clockDateEl = document.getElementById('clockDate');
 
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
+    const clockEl = document.getElementById('clock');
+    const timeEl  = document.getElementById('clockTime');
+    const dateEl  = document.getElementById('clockDate');
+
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
 
     let particles = [];
 
-    // fade overlay for mode change
-    let transitionAlpha = 0;
-    let transitionStart = 0;
-    const TRANSITION_DURATION = 350; // ms
-
-    // scroll "inertia" accumulator
-    let scrollAccum = 0;
-    const SCROLL_THRESHOLD = 80; // чем меньше, тем чувствительнее
-
     /* ---------------- HELPERS ---------------- */
 
-    function random(min, max) {
-      return Math.random() * (max - min) + min;
+    const random = (a, b) => Math.random() * (b - a) + a;
+
+    function resize() {
+      const rectWidth = window.innerWidth;
+      const rectHeight = window.innerHeight;
+
+      dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+
+      canvas.width  = rectWidth * dpr;
+      canvas.height = rectHeight * dpr;
+      canvas.style.width  = rectWidth + "px";
+      canvas.style.height = rectHeight + "px";
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      width  = rectWidth;
+      height = rectHeight;
+
+      initParticles();
     }
 
     function setMode(newMode) {
@@ -164,36 +154,25 @@
       transitionStart = performance.now();
     }
 
-    /* ---------------- EVENT LISTENERS ---------------- */
+    /* ---------------- EVENTS ---------------- */
 
-    // scroll: переключаем режимы с "инерцией"
-    window.addEventListener("wheel", (e) => {
+    window.addEventListener("wheel", e => {
       e.preventDefault();
       scrollAccum += e.deltaY;
 
       while (scrollAccum >= SCROLL_THRESHOLD) {
-        prevMode(); // скролл вниз — назад
+        prevMode();
         scrollAccum -= SCROLL_THRESHOLD;
       }
       while (scrollAccum <= -SCROLL_THRESHOLD) {
-        nextMode(); // скролл вверх — вперёд
+        nextMode();
         scrollAccum += SCROLL_THRESHOLD;
       }
     }, { passive: false });
 
-    // click on clock: просто следующий режим
-    clockEl.addEventListener('click', () => {
-      nextMode();
-    });
+    clockEl.addEventListener('click', nextMode);
 
-    // resize
-    window.addEventListener('resize', () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
-      initParticles();
-    });
+    window.addEventListener('resize', resize);
 
     /* ---------------- PARTICLES INIT ---------------- */
 
@@ -202,12 +181,14 @@
       const isRain = mode === 'rain';
       const isSnow = mode === 'snow';
 
+      // немного уменьшил плотность
       let density;
-      if (isRain) density = 0.5;
-      else if (isSnow) density = 0.25;
-      else density = 0.15; // bubbles
+      if (isRain) density = 0.35;
+      else if (isSnow) density = 0.22;
+      else density = 0.14;
 
-      const count = Math.floor(width * density);
+      let count = Math.floor(width * density);
+      if (count > MAX_PARTICLES) count = MAX_PARTICLES;
 
       for (let i = 0; i < count; i++) {
         if (isRain) {
@@ -216,38 +197,38 @@
             x: random(0, width),
             y: random(0, height),
             length: random(10, 20),
-            speedY: random(4, 10),
-            opacity: random(0.1, 0.6),
+            speedY: random(4, 9),
+            opacity: random(0.15, 0.6),
           });
         } else if (isSnow) {
           particles.push({
             type: 'snow',
             x: random(0, width),
             y: random(0, height),
-            radius: random(1.5, 4),
-            speedY: random(0.5, 2),
-            driftX: random(-0.5, 0.5),
+            radius: random(1.5, 3.5),
+            speedY: random(0.5, 1.8),
+            driftX: random(-0.4, 0.4),
             phase: random(0, Math.PI * 2),
-            opacity: random(0.4, 0.9),
+            opacity: random(0.45, 0.9),
           });
         } else {
           particles.push({
             type: 'bubble',
             x: random(0, width),
             y: random(0, height),
-            radius: random(6, 20),
-            speedY: random(0.5, 2),
-            driftX: random(-0.3, 0.3),
+            radius: random(6, 18),
+            speedY: random(0.5, 1.8),
+            driftX: random(-0.25, 0.25),
             phase: random(0, Math.PI * 2),
-            opacity: random(0.3, 0.8),
-            lineWidth: random(1, 2),
+            opacity: random(0.35, 0.8),
+            lineWidth: random(1, 1.8),
             hue: random(190, 260)
           });
         }
       }
     }
 
-    /* ---------------- DRAW SCENE ---------------- */
+    /* ---------------- DRAWING ---------------- */
 
     function drawBackground() {
       ctx.fillStyle = '#050816';
@@ -259,49 +240,47 @@
       ctx.lineWidth = 1;
       ctx.lineCap = 'round';
 
-      for (let drop of particles) {
-        ctx.globalAlpha = drop.opacity;
+      for (let d of particles) {
+        ctx.globalAlpha = d.opacity;
 
         ctx.beginPath();
-        ctx.moveTo(drop.x, drop.y);
-        ctx.lineTo(drop.x, drop.y + drop.length);
+        ctx.moveTo(d.x, d.y);
+        ctx.lineTo(d.x, d.y + d.length);
         ctx.stroke();
 
-        drop.y += drop.speedY;
-        drop.x += 0.5;
+        d.y += d.speedY;
+        d.x += 0.4;
 
-        if (drop.y > height + drop.length) {
-          drop.y = random(-50, 0);
-          drop.x = random(0, width);
+        if (d.y > height + d.length) {
+          d.y = random(-50, 0);
+          d.x = random(0, width);
         }
       }
-
-      ctx.globalAlpha = 1.0;
+      ctx.globalAlpha = 1;
     }
 
     function drawSnow() {
       ctx.fillStyle = '#ffffff';
 
-      for (let flake of particles) {
-        ctx.globalAlpha = flake.opacity;
+      for (let f of particles) {
+        ctx.globalAlpha = f.opacity;
 
         ctx.beginPath();
-        ctx.arc(flake.x, flake.y, flake.radius, 0, Math.PI * 2);
+        ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        flake.phase += 0.01;
-        flake.y += flake.speedY;
-        flake.x += Math.sin(flake.phase) * 0.5 + flake.driftX;
+        f.phase += 0.01;
+        f.y += f.speedY;
+        f.x += Math.sin(f.phase) * 0.4 + f.driftX;
 
-        if (flake.y > height + flake.radius) {
-          flake.y = random(-50, -10);
-          flake.x = random(0, width);
+        if (f.y > height + f.radius) {
+          f.y = random(-50, -10);
+          f.x = random(0, width);
         }
-        if (flake.x > width + 20) flake.x = -20;
-        if (flake.x < -20) flake.x = width + 20;
+        if (f.x > width + 20) f.x = -20;
+        if (f.x < -20)      f.x =  width + 20;
       }
-
-      ctx.globalAlpha = 1.0;
+      ctx.globalAlpha = 1;
     }
 
     function drawBubbles() {
@@ -314,33 +293,23 @@
         ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
         ctx.stroke();
 
-        // дугообразный блик по краю
+        // highlight arc
         ctx.save();
         ctx.globalAlpha = b.opacity * 0.9;
-        ctx.lineWidth = b.lineWidth * 0.8;
+        ctx.lineWidth = b.lineWidth * 0.85;
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-
-        const highlightRadius = b.radius * 0.9;
+        const r = b.radius * 0.9;
         ctx.beginPath();
-        ctx.arc(
-          b.x,
-          b.y,
-          highlightRadius,
-          -Math.PI * 0.15,
-          -Math.PI * 0.7,
-          true
-        );
+        ctx.arc(b.x, b.y, r, -Math.PI * 0.15, -Math.PI * 0.7, true);
         ctx.stroke();
         ctx.restore();
 
-        ctx.globalAlpha = 1.0;
+        ctx.globalAlpha = 1;
 
-        // движение вверх
         b.phase += 0.01;
         b.y -= b.speedY;
-        b.x += Math.sin(b.phase) * 0.5 + b.driftX;
+        b.x += Math.sin(b.phase) * 0.4 + b.driftX;
 
-        // лёгкий сдвиг оттенка
         b.hue += 0.02;
         if (b.hue > 260) b.hue = 190;
 
@@ -348,72 +317,64 @@
           b.y = height + b.radius + random(0, 80);
           b.x = random(0, width);
         }
-
         if (b.x > width + 30) b.x = -30;
-        if (b.x < -30) b.x = width + 30;
+        if (b.x < -30)       b.x =  width + 30;
       }
     }
 
     /* ---------------- CLOCK ---------------- */
 
-    const WEEKDAYS = [
-      'Sunday', 'Monday', 'Tuesday', 'Wednesday',
-      'Thursday', 'Friday', 'Saturday',
-    ];
-
-    const MONTHS = [
-      'January', 'February', 'March', 'April',
-      'May', 'June', 'July', 'August',
-      'September', 'October', 'November', 'December',
-    ];
+    const WEEKDAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const MONTHS   = ["January","February","March","April","May","June",
+                      "July","August","September","October","November","December"];
 
     function updateClock() {
-      const now = new Date();
+      const n = new Date();
+      timeEl.textContent =
+        `${String(n.getUTCHours()).padStart(2,'0')}:`+
+        `${String(n.getUTCMinutes()).padStart(2,'0')}:`+
+        `${String(n.getUTCSeconds()).padStart(2,'0')}`;
 
-      const h = String(now.getUTCHours()).padStart(2, '0');
-      const m = String(now.getUTCMinutes()).padStart(2, '0');
-      const s = String(now.getUTCSeconds()).padStart(2, '0');
-      clockTimeEl.textContent = `${h}:${m}:${s}`;
-
-      const weekday = WEEKDAYS[now.getUTCDay()];
-      const day = String(now.getUTCDate()).padStart(2, '0');
-      const month = MONTHS[now.getUTCMonth()];
-      const year = now.getUTCFullYear();
-
-      clockDateEl.textContent = `${weekday}, ${month} ${day}, ${year}`;
+      dateEl.textContent =
+        `${WEEKDAYS[n.getUTCDay()]}, `+
+        `${MONTHS[n.getUTCMonth()]} `+
+        `${String(n.getUTCDate()).padStart(2,'0')}, `+
+        `${n.getUTCFullYear()}`;
     }
 
     /* ---------------- ANIMATION LOOP ---------------- */
 
-    function animate(timestamp) {
+    function animate(ts) {
       drawBackground();
 
-      if (mode === 'rain') {
-        drawRain();
-      } else if (mode === 'snow') {
-        drawSnow();
-      } else {
-        drawBubbles();
-      }
+      if (mode === "rain") drawRain();
+      else if (mode === "snow") drawSnow();
+      else drawBubbles();
 
-      // fade overlay on mode change
+      // fade+blur
+      let blur = 0;
       if (transitionAlpha > 0) {
-        const elapsed = timestamp - transitionStart;
-        const t = Math.min(1, elapsed / TRANSITION_DURATION);
+        const t = Math.min(1, (ts - transitionStart) / TRANSITION_DURATION);
         transitionAlpha = 1 - t;
 
-        const overlayAlpha = 0.6 * transitionAlpha;
+        const overlayAlpha = 0.45 * transitionAlpha; // было 0.6
+        blur = MAX_BLUR * transitionAlpha;
+
         if (overlayAlpha > 0) {
           ctx.fillStyle = `rgba(5, 8, 22, ${overlayAlpha})`;
           ctx.fillRect(0, 0, width, height);
         }
       }
 
+      canvas.style.filter = blur > 0.01 ? `blur(${blur.toFixed(2)}px)` : 'none';
+
       updateClock();
       requestAnimationFrame(animate);
     }
 
-    initParticles();
+    /* ---------------- START ---------------- */
+
+    resize();
     requestAnimationFrame(animate);
   </script>
 </body>
