@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Exact UTC+0 (GMT) Time Online — Real-Time World Clock | UTC0.ru</title>
+
+  <meta name="description"
+        content="UTC0.ru is a real-time UTC+0 (GMT) online clock. Accurate world time based on Coordinated Universal Time, convenient for developers, traders, and global teams." />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="index,follow" />
+  <link rel="canonical" href="https://utc0.ru/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Exact UTC+0 (GMT) Time Online — UTC0.ru" />
+  <meta property="og:description"
+        content="Real-time UTC+0 (GMT) online clock. Accurate world time based on Coordinated Universal Time." />
+  <meta property="og:url" content="https://utc0.ru/" />
+  <meta property="og:site_name" content="UTC0.ru" />
+  <!-- <meta property="og:image" content="https://utc0.ru/img/preview.png" /> -->
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Exact UTC+0 (GMT) Time Online — UTC0.ru" />
+  <meta name="twitter:description"
+        content="Real-time UTC+0 (GMT) online clock. Accurate world time based on Coordinated Universal Time." />
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #050816;
+      font-family: system-ui, sans-serif;
+      color: #ffffff;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    /* CLOCK */
+    .clock {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      z-index: 10;
+      user-select: none;
+      white-space: nowrap;
+      animation: clockFadeIn 0.9s ease-out forwards, clockBreath 5s ease-in-out infinite;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .clock-time {
+      font-family: "SF Mono", Consolas, monospace;
+      font-weight: 600;
+      font-size: clamp(36px, 9vw, 96px);
+      letter-spacing: 0.08em;
+      text-shadow:
+        0 0 10px rgba(255,255,255,0.7),
+        0 0 25px rgba(0,150,255,0.55);
+    }
+
+    .clock-date {
+      font-size: clamp(14px, 2.4vw, 18px);
+      opacity: 0.9;
+      letter-spacing: 0.04em;
+    }
+
+    @keyframes clockFadeIn {
+      0% { opacity: 0; transform: translate(-50%, -55%); }
+      100% { opacity: 1; transform: translate(-50%, -50%); }
+    }
+
+    @keyframes clockBreath {
+      0% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.02); }
+      100% { transform: translate(-50%, -50%) scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="clock" id="clock">
+    <div class="clock-time" id="clockTime">00:00:00</div>
+    <div class="clock-date" id="clockDate">Monday, January 01, 1970</div>
+  </div>
+
+  <canvas id="scene"></canvas>
+
+  <script>
+    /* ------------------------------------------
+       MODES & DEFAULT
+       ------------------------------------------ */
+    const MODES = ["bubbles", "snow", "rain"];
+    let modeIndex = 0; // default = bubbles
+    let mode = MODES[modeIndex];
+    /* ------------------------------------------ */
+
+    const canvas = document.getElementById('scene');
+    const ctx = canvas.getContext('2d');
+    const clockEl = document.getElementById('clock');
+    const clockTimeEl = document.getElementById('clockTime');
+    const clockDateEl = document.getElementById('clockDate');
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    let particles = [];
+
+    // fade overlay for mode change
+    let transitionAlpha = 0;
+    let transitionStart = 0;
+    const TRANSITION_DURATION = 350; // ms
+
+    // scroll "inertia" accumulator
+    let scrollAccum = 0;
+    const SCROLL_THRESHOLD = 80; // чем меньше, тем чувствительнее
+
+    /* ---------------- HELPERS ---------------- */
+
+    function random(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function setMode(newMode) {
+      const idx = MODES.indexOf(newMode);
+      if (idx === -1 || idx === modeIndex) return;
+      modeIndex = idx;
+      mode = MODES[modeIndex];
+      startTransition();
+    }
+
+    function nextMode() {
+      modeIndex = (modeIndex + 1) % MODES.length;
+      mode = MODES[modeIndex];
+      startTransition();
+    }
+
+    function prevMode() {
+      modeIndex = (modeIndex - 1 + MODES.length) % MODES.length;
+      mode = MODES[modeIndex];
+      startTransition();
+    }
+
+    function startTransition() {
+      initParticles();
+      transitionAlpha = 1;
+      transitionStart = performance.now();
+    }
+
+    /* ---------------- EVENT LISTENERS ---------------- */
+
+    // scroll: переключаем режимы с "инерцией"
+    window.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      scrollAccum += e.deltaY;
+
+      while (scrollAccum >= SCROLL_THRESHOLD) {
+        prevMode(); // скролл вниз — назад
+        scrollAccum -= SCROLL_THRESHOLD;
+      }
+      while (scrollAccum <= -SCROLL_THRESHOLD) {
+        nextMode(); // скролл вверх — вперёд
+        scrollAccum += SCROLL_THRESHOLD;
+      }
+    }, { passive: false });
+
+    // click on clock: просто следующий режим
+    clockEl.addEventListener('click', () => {
+      nextMode();
+    });
+
+    // resize
+    window.addEventListener('resize', () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+      initParticles();
+    });
+
+    /* ---------------- PARTICLES INIT ---------------- */
+
+    function initParticles() {
+      particles = [];
+      const isRain = mode === 'rain';
+      const isSnow = mode === 'snow';
+
+      let density;
+      if (isRain) density = 0.5;
+      else if (isSnow) density = 0.25;
+      else density = 0.15; // bubbles
+
+      const count = Math.floor(width * density);
+
+      for (let i = 0; i < count; i++) {
+        if (isRain) {
+          particles.push({
+            type: 'rain',
+            x: random(0, width),
+            y: random(0, height),
+            length: random(10, 20),
+            speedY: random(4, 10),
+            opacity: random(0.1, 0.6),
+          });
+        } else if (isSnow) {
+          particles.push({
+            type: 'snow',
+            x: random(0, width),
+            y: random(0, height),
+            radius: random(1.5, 4),
+            speedY: random(0.5, 2),
+            driftX: random(-0.5, 0.5),
+            phase: random(0, Math.PI * 2),
+            opacity: random(0.4, 0.9),
+          });
+        } else {
+          particles.push({
+            type: 'bubble',
+            x: random(0, width),
+            y: random(0, height),
+            radius: random(6, 20),
+            speedY: random(0.5, 2),
+            driftX: random(-0.3, 0.3),
+            phase: random(0, Math.PI * 2),
+            opacity: random(0.3, 0.8),
+            lineWidth: random(1, 2),
+            hue: random(190, 260)
+          });
+        }
+      }
+    }
+
+    /* ---------------- DRAW SCENE ---------------- */
+
+    function drawBackground() {
+      ctx.fillStyle = '#050816';
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    function drawRain() {
+      ctx.strokeStyle = 'rgba(173, 216, 230, 0.8)';
+      ctx.lineWidth = 1;
+      ctx.lineCap = 'round';
+
+      for (let drop of particles) {
+        ctx.globalAlpha = drop.opacity;
+
+        ctx.beginPath();
+        ctx.moveTo(drop.x, drop.y);
+        ctx.lineTo(drop.x, drop.y + drop.length);
+        ctx.stroke();
+
+        drop.y += drop.speedY;
+        drop.x += 0.5;
+
+        if (drop.y > height + drop.length) {
+          drop.y = random(-50, 0);
+          drop.x = random(0, width);
+        }
+      }
+
+      ctx.globalAlpha = 1.0;
+    }
+
+    function drawSnow() {
+      ctx.fillStyle = '#ffffff';
+
+      for (let flake of particles) {
+        ctx.globalAlpha = flake.opacity;
+
+        ctx.beginPath();
+        ctx.arc(flake.x, flake.y, flake.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        flake.phase += 0.01;
+        flake.y += flake.speedY;
+        flake.x += Math.sin(flake.phase) * 0.5 + flake.driftX;
+
+        if (flake.y > height + flake.radius) {
+          flake.y = random(-50, -10);
+          flake.x = random(0, width);
+        }
+        if (flake.x > width + 20) flake.x = -20;
+        if (flake.x < -20) flake.x = width + 20;
+      }
+
+      ctx.globalAlpha = 1.0;
+    }
+
+    function drawBubbles() {
+      for (let b of particles) {
+        ctx.globalAlpha = b.opacity;
+        ctx.lineWidth = b.lineWidth;
+        ctx.strokeStyle = `hsla(${b.hue}, 80%, 75%, ${b.opacity})`;
+
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // дугообразный блик по краю
+        ctx.save();
+        ctx.globalAlpha = b.opacity * 0.9;
+        ctx.lineWidth = b.lineWidth * 0.8;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+
+        const highlightRadius = b.radius * 0.9;
+        ctx.beginPath();
+        ctx.arc(
+          b.x,
+          b.y,
+          highlightRadius,
+          -Math.PI * 0.15,
+          -Math.PI * 0.7,
+          true
+        );
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.globalAlpha = 1.0;
+
+        // движение вверх
+        b.phase += 0.01;
+        b.y -= b.speedY;
+        b.x += Math.sin(b.phase) * 0.5 + b.driftX;
+
+        // лёгкий сдвиг оттенка
+        b.hue += 0.02;
+        if (b.hue > 260) b.hue = 190;
+
+        if (b.y < -b.radius) {
+          b.y = height + b.radius + random(0, 80);
+          b.x = random(0, width);
+        }
+
+        if (b.x > width + 30) b.x = -30;
+        if (b.x < -30) b.x = width + 30;
+      }
+    }
+
+    /* ---------------- CLOCK ---------------- */
+
+    const WEEKDAYS = [
+      'Sunday', 'Monday', 'Tuesday', 'Wednesday',
+      'Thursday', 'Friday', 'Saturday',
+    ];
+
+    const MONTHS = [
+      'January', 'February', 'March', 'April',
+      'May', 'June', 'July', 'August',
+      'September', 'October', 'November', 'December',
+    ];
+
+    function updateClock() {
+      const now = new Date();
+
+      const h = String(now.getUTCHours()).padStart(2, '0');
+      const m = String(now.getUTCMinutes()).padStart(2, '0');
+      const s = String(now.getUTCSeconds()).padStart(2, '0');
+      clockTimeEl.textContent = `${h}:${m}:${s}`;
+
+      const weekday = WEEKDAYS[now.getUTCDay()];
+      const day = String(now.getUTCDate()).padStart(2, '0');
+      const month = MONTHS[now.getUTCMonth()];
+      const year = now.getUTCFullYear();
+
+      clockDateEl.textContent = `${weekday}, ${month} ${day}, ${year}`;
+    }
+
+    /* ---------------- ANIMATION LOOP ---------------- */
+
+    function animate(timestamp) {
+      drawBackground();
+
+      if (mode === 'rain') {
+        drawRain();
+      } else if (mode === 'snow') {
+        drawSnow();
+      } else {
+        drawBubbles();
+      }
+
+      // fade overlay on mode change
+      if (transitionAlpha > 0) {
+        const elapsed = timestamp - transitionStart;
+        const t = Math.min(1, elapsed / TRANSITION_DURATION);
+        transitionAlpha = 1 - t;
+
+        const overlayAlpha = 0.6 * transitionAlpha;
+        if (overlayAlpha > 0) {
+          ctx.fillStyle = `rgba(5, 8, 22, ${overlayAlpha})`;
+          ctx.fillRect(0, 0, width, height);
+        }
+      }
+
+      updateClock();
+      requestAnimationFrame(animate);
+    }
+
+    initParticles();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
