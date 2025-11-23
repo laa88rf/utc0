@@ -154,7 +154,15 @@
   <script>
     /* ---------------- EFFECTS & THEMES ---------------- */
 
-    const EFFECTS = ["bubbles", "snow", "rain", "sparks"];
+    const EFFECTS = [
+      "bubbles",
+      "snow",
+      "rain",
+      "sparks",
+      "dust",
+      "stars"
+    ];
+
     const THEMES  = ["aurora", "cyberpunk", "forest", "space", "sumi"];
 
     let effectIndex = 0;
@@ -439,11 +447,15 @@
       const isRain   = effect === 'rain';
       const isSnow   = effect === 'snow';
       const isSparks = effect === 'sparks';
+      const isDust   = effect === 'dust';
+      const isStars  = effect === 'stars';
 
       let density;
       if (isRain)        density = 0.35;
       else if (isSnow)   density = 0.22;
       else if (isSparks) density = 0.25;
+      else if (isDust)   density = 0.10;
+      else if (isStars)  density = 0.12;
       else               density = 0.14;   // bubbles
 
       let count = Math.floor(width * density);
@@ -484,7 +496,28 @@
             maxLife: life,
             hue: random(themeConfig.sparkHueMin, themeConfig.sparkHueMax),
           });
+        } else if (isDust) {
+          particles.push({
+            type: 'dust',
+            x: random(0, width),
+            y: random(0, height),
+            radius: random(0.8, 1.8),
+            speedX: random(-0.05, 0.05),
+            speedY: random(-0.02, 0.02),
+            phase: random(0, Math.PI * 2),
+            opacity: random(0.1, 0.3)
+          });
+        } else if (isStars) {
+          particles.push({
+            type: 'star',
+            x: random(0, width),
+            y: random(0, height),
+            radius: random(0.8, 1.8),
+            twinklePhase: random(0, Math.PI * 2),
+            depth: random(0.3, 1),
+          });
         } else {
+          // bubbles
           particles.push({
             type: 'bubble',
             x: random(0, width),
@@ -537,7 +570,6 @@
 
       for (let d of particles) {
         ctx.globalAlpha = d.opacity;
-
         ctx.beginPath();
         ctx.moveTo(d.x, d.y);
         ctx.lineTo(d.x, d.y + d.length);
@@ -590,6 +622,7 @@
         ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
         ctx.stroke();
 
+        // highlight
         ctx.save();
         ctx.globalAlpha = b.opacity * 0.95;
         ctx.lineWidth = b.lineWidth * 0.85;
@@ -660,6 +693,60 @@
       }
 
       ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawDust() {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+
+      for (let d of particles) {
+        const alpha = d.opacity * (0.5 + 0.5 * Math.sin(d.phase));
+        ctx.globalAlpha = alpha;
+
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        d.x += d.speedX;
+        d.y += d.speedY;
+        d.phase += 0.002;
+
+        if (d.x < -30) d.x = width + 30;
+        if (d.x > width + 30) d.x = -30;
+        if (d.y < -30) d.y = height + 30;
+        if (d.y > height + 30) d.y = -30;
+      }
+
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawStars() {
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+
+      for (let s of particles) {
+        s.twinklePhase += 0.01;
+        const twinkle = (Math.sin(s.twinklePhase * 3) + 1) / 2;
+        const alpha = 0.2 + twinkle * 0.8;
+        ctx.globalAlpha = alpha;
+
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        s.y += 0.02 + (1 - s.depth) * 0.05;
+
+        if (s.y > height + 10) {
+          s.y = -10;
+          s.x = random(0, width);
+        }
+      }
+
+      ctx.restore();
+      ctx.globalAlpha = 1;
     }
 
     /* ---------------- CLOCK ---------------- */
@@ -687,10 +774,12 @@
     function animate(ts) {
       drawBackground();
 
-      if (effect === "rain")      drawRain();
-      else if (effect === "snow") drawSnow();
+      if (effect === "rain")         drawRain();
+      else if (effect === "snow")    drawSnow();
       else if (effect === "bubbles") drawBubbles();
       else if (effect === "sparks")  drawSparks();
+      else if (effect === "dust")    drawDust();
+      else if (effect === "stars")   drawStars();
 
       let blur = 0;
       if (transitionAlpha > 0) {
