@@ -125,6 +125,19 @@
       50% { transform: translate(-50%, -50%) scale(1.02); }
       100% { transform: translate(-50%, -50%) scale(1); }
     }
+
+    /* Debug overlay */
+    .debug-overlay {
+      position: fixed;
+      left: 10px;
+      bottom: 8px;
+      font-size: 11px;
+      font-family: "SF Mono", Consolas, monospace;
+      opacity: 0.55;
+      z-index: 20;
+      pointer-events: none;
+      white-space: nowrap;
+    }
   </style>
 </head>
 
@@ -136,12 +149,13 @@
   </div>
 
   <canvas id="scene"></canvas>
+  <div class="debug-overlay" id="debugOverlay"></div>
 
   <script>
     /* ---------------- EFFECTS & THEMES ---------------- */
 
     const EFFECTS = ["bubbles", "snow", "rain", "sparks"];
-    const THEMES  = ["aurora", "sunset", "cyberpunk", "forest", "space", "sumi"];
+    const THEMES  = ["aurora", "cyberpunk", "forest", "space", "sumi"];
 
     let effectIndex = 0;
     let themeIndex  = 0;
@@ -149,7 +163,6 @@
     let effect = EFFECTS[effectIndex];
     let theme  = THEMES[themeIndex];
 
-    // Настройки тем: фон + цвета частиц
     const THEME_CONFIGS = {
       aurora: {
         bgTop:    "#050816",
@@ -173,29 +186,6 @@
         sparkHueMax: 220,
         sparkSat: 90,
         sparkLight: 80
-      },
-      sunset: {
-        bgTop:    "#14070a",
-        bgMid1:   "#2b0b0b",
-        bgMid2:   "#6b2b13",
-        bgBottom: "#120808",
-        overlayStops: [
-          "rgba(255,123,0,0)",
-          "rgba(255,123,0,0.12)",
-          "rgba(255,179,71,0.16)",
-          "rgba(255,220,178,0.12)",
-          "rgba(255,123,0,0)"
-        ],
-        rainColor: "rgba(255,210,150,0.9)",
-        snowColor: "#fff5e6",
-        bubbleHueMin: 25,
-        bubbleHueMax: 45,
-        bubbleSat: 85,
-        bubbleLight: 70,
-        sparkHueMin: 20,
-        sparkHueMax: 50,
-        sparkSat: 95,
-        sparkLight: 75
       },
       cyberpunk: {
         bgTop:    "#05010a",
@@ -312,12 +302,34 @@
     const clockEl = document.getElementById('clock');
     const timeEl  = document.getElementById('clockTime');
     const dateEl  = document.getElementById('clockDate');
+    const debugEl = document.getElementById('debugOverlay');
 
     let width = 0, height = 0, dpr = 1;
     let particles = [];
 
+    // Debug overlay visibility + long press
+    let debugVisible = false;  // по умолчанию скрыт
+    let pressTimer = null;
+    let longPressFired = false;
+    const LONG_PRESS_MS = 600;
+
     /* ---------------- HELPERS ---------------- */
     const random = (a, b) => Math.random() * (b - a) + a;
+
+    function renderDebugOverlay() {
+      if (!debugEl) return;
+      if (!debugVisible) {
+        debugEl.style.display = 'none';
+        return;
+      }
+      debugEl.style.display = 'block';
+      debugEl.textContent = `${effect} • ${theme}`;
+    }
+
+    function toggleDebugOverlay() {
+      debugVisible = !debugVisible;
+      renderDebugOverlay();
+    }
 
     function applyThemeAndEffect(stepDir) {
       if (stepDir > 0) {
@@ -330,6 +342,7 @@
       effect = EFFECTS[effectIndex];
       theme  = THEMES[themeIndex];
       themeConfig = THEME_CONFIGS[theme];
+      renderDebugOverlay();
       startTransition();
     }
 
@@ -374,7 +387,48 @@
       }
     }, { passive: false });
 
-    clockEl.addEventListener('click', () => applyThemeAndEffect(1));
+    // Клавиша D — показать/скрыть overlay
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'd' || e.key === 'D') {
+        toggleDebugOverlay();
+      }
+    });
+
+    // Long press на часах
+    function startPress() {
+      if (pressTimer) clearTimeout(pressTimer);
+      longPressFired = false;
+      pressTimer = setTimeout(() => {
+        longPressFired = true;
+        toggleDebugOverlay();
+        pressTimer = null;
+      }, LONG_PRESS_MS);
+    }
+
+    function cancelPress() {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    }
+
+    clockEl.addEventListener('mousedown', startPress);
+    clockEl.addEventListener('touchstart', startPress, { passive: true });
+
+    clockEl.addEventListener('mouseup', cancelPress);
+    clockEl.addEventListener('mouseleave', cancelPress);
+    clockEl.addEventListener('touchend', cancelPress);
+    clockEl.addEventListener('touchcancel', cancelPress);
+
+    // Клик по часам: если не было long press — переключаем эффект/тему
+    clockEl.addEventListener('click', () => {
+      if (longPressFired) {
+        longPressFired = false;
+        return;
+      }
+      applyThemeAndEffect(1);
+    });
+
     window.addEventListener('resize', resize);
 
     /* ---------------- PARTICLES INIT ---------------- */
@@ -661,6 +715,7 @@
     /* ---------------- START ---------------- */
 
     resize();
+    renderDebugOverlay();   // отрисует как скрытый
     requestAnimationFrame(animate);
 
   </script>
