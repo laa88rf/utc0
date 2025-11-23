@@ -102,9 +102,10 @@
       font-weight: 600;
       font-size: clamp(36px, 9vw, 96px);
       letter-spacing: 0.08em;
+      color: #e6ffff; /* фиксированный цвет текста */
       text-shadow:
-        0 0 10px rgba(200,255,255,0.8),
-        0 0 25px rgba(0,220,190,0.7);
+        0 0 10px rgba(200,255,255,0.5),
+        0 0 22px rgba(0,220,190,0.4);
       margin-bottom: 6px;
     }
 
@@ -769,6 +770,19 @@
         `${n.getUTCFullYear()}`;
     }
 
+    // Плавная смена ТОЛЬКО мягкого сияния вокруг текста
+    function updateClockGlow(ts) {
+      if (!timeEl) return;
+      const t = ts / 1000;
+      const hue = (t * 4) % 360; // ещё медленнее
+
+      const glow1 = `0 0 6px  hsla(${hue},  70%, 70%, 0.35)`;
+      const glow2 = `0 0 16px hsla(${(hue+30)%360}, 65%, 60%, 0.25)`;
+      const glow3 = `0 0 32px hsla(${(hue+80)%360}, 60%, 55%, 0.18)`;
+
+      timeEl.style.textShadow = `${glow1}, ${glow2}, ${glow3}`;
+    }
+
     /* ---------------- ANIMATE ---------------- */
 
     function animate(ts) {
@@ -798,6 +812,8 @@
       canvas.style.filter = blur > 0.01 ? `blur(${blur.toFixed(2)}px)` : 'none';
 
       updateClock();
+      updateClockGlow(ts);
+
       requestAnimationFrame(animate);
     }
 
