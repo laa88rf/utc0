@@ -166,7 +166,38 @@
 
     const THEMES  = ["aurora", "cyberpunk", "forest", "space", "sumi"];
 
-    let effectIndex = 0;
+    // выбор стартового эффекта по текущему UTC-месяцу
+    function getInitialEffectIndex() {
+      const m = new Date().getUTCMonth() + 1; // 1–12
+      let effectName;
+
+      if (m === 10 || m === 11) {
+        // Октябрь, Ноябрь — дождь
+        effectName = "rain";
+      } else if (m === 12 || m === 1) {
+        // Декабрь, Январь — снег
+        effectName = "snow";
+      } else if (m === 2 || m === 3) {
+        // Февраль, Март — звёзды
+        effectName = "stars";
+      } else if (m === 4 || m === 5) {
+        // Апрель, Май — пузыри
+        effectName = "bubbles";
+      } else if (m === 6 || m === 7) {
+        // Июнь, Июль — искры
+        effectName = "sparks";
+      } else if (m === 8 || m === 9) {
+        // Август, Сентябрь — пыль
+        effectName = "dust";
+      } else {
+        effectName = "bubbles";
+      }
+
+      const idx = EFFECTS.indexOf(effectName);
+      return idx >= 0 ? idx : 0;
+    }
+
+    let effectIndex = getInitialEffectIndex();
     let themeIndex  = 0;
 
     let effect = EFFECTS[effectIndex];
@@ -774,7 +805,7 @@
     function updateClockGlow(ts) {
       if (!timeEl) return;
       const t = ts / 1000;
-      const hue = (t * 4) % 360; // ещё медленнее
+      const hue = (t * 4) % 360; // медленный цикл
 
       const glow1 = `0 0 6px  hsla(${hue},  70%, 70%, 0.35)`;
       const glow2 = `0 0 16px hsla(${(hue+30)%360}, 65%, 60%, 0.25)`;
